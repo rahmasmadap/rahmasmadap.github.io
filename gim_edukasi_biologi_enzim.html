@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gim Edukasi Interaktif: Lab Labirin & Eksperimen Enzim</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Lexend:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#06b6d4',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e',
+                            purple: '#8b5cf6'
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Fredoka One', 'cursive'],
+                        body: ['Lexend', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #090d16;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        .font-display {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Responsive 16:9 Aspect Ratio Game Board */
+        .game-container {
+            width: 100%;
+            max-width: 1200px;
+            aspect-ratio: 16 / 9;
+            margin: 0 auto;
+        }
+
+        @media (max-aspect-ratio: 16/9) {
+            .game-container-fit {
+                height: 85vh;
+                width: calc(85vh * 16 / 9);
+            }
+        }
+
+        /* Drag and Drop styling */
+        .draggable {
+            cursor: grab;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .draggable:active {
+            cursor: grabbing;
+            transform: scale(1.08);
+            z-index: 50;
+        }
+        .draggable.dragging {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+
+        .dropzone {
+            transition: all 0.2s ease;
+        }
+        .dropzone.drag-over {
+            background-color: rgba(6, 182, 212, 0.25) !important;
+            border-color: #06b6d4 !important;
+            transform: scale(1.02);
+        }
+
+        /* Glow animation */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.8); }
+        }
+        .glow-active {
+            animation: pulseGlow 2s infinite;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #06b6d4;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 md:p-4 bg-slate-950 text-slate-100">
+
+    <!-- TOP HEADER / NAV BAR -->
+    <header class="w-full max-w-7xl mx-auto flex justify-between items-center bg-slate-900/80 border border-slate-800 rounded-2xl px-4 py-3 backdrop-blur-md mb-2 shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-display text-xl shadow-lg shadow-cyan-500/30">
+                <i class="fa-solid font-bold fa-flask-vial"></i>
+            </div>
+            <div>
+                <h1 class="font-display text-lg md:text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">ENZYME LAB ADVENTURE</h1>
+                <p class="text-xs text-slate-400 hidden sm:block">Biologi XI Fase F - SMAN 2 PANGKEP</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button id="soundToggleBtn" onclick="toggleAudio()" class="w-11 h-11 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 rounded-xl flex items-center justify-center text-cyan-400 transition">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-lg"></i>
+            </button>
+            <button onclick="showScreen('screenMenu')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs md:text-sm font-semibold border border-slate-700 rounded-xl flex items-center space-x-2 transition">
+                <i class="fa-solid fa-house"></i>
+                <span class="hidden sm:inline">Menu Utama</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER (16:9 VIEWPORT FIT) -->
+    <main class="flex-grow flex items-center justify-center w-full max-w-7xl mx-auto my-auto relative">
+        
+        <!-- ==================== 1. HALAMAN LOGIN / IDENTITAS ==================== -->
+        <section id="screenLogin" class="w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl my-auto text-center relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="w-20 h-20 bg-gradient-to-tr from-cyan-500 to-emerald-400 rounded-3xl mx-auto flex items-center justify-center text-white text-4xl mb-4 shadow-xl shadow-cyan-500/20">
+                <i class="fa-solid fa-dna"></i>
+            </div>
+            <h2 class="font-display text-2xl md:text-3xl text-white mb-1">E-LAB ENZIM INTERAKTIF</h2>
+            <p class="text-xs md:text-sm text-slate-400 mb-6">Petualangan Kinestetik Komponen & Cara Kerja Enzim</p>
+
+            <form id="loginForm" onsubmit="event.preventDefault(); submitLogin();" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nama Lengkap Siswa</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" id="playerNameInput" required placeholder="Masukkan Nama Lengkap..." class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Kelas / Nomor Absen</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-graduation-cap absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" id="playerClassInput" required placeholder="Contoh: XI-1 / 05" class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition">
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 active:scale-[0.98] font-display text-lg text-slate-950 rounded-xl shadow-lg shadow-cyan-500/25 transition mt-6 flex items-center justify-center space-x-2">
+                    <span>MASUK KE GAME</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+            <div class="mt-6 pt-4 border-t border-slate-800 text-xs text-slate-500">
+                Pengembang: <span class="text-slate-300 font-semibold">A. RAHMAWATI. P, S.Pd</span> | SMAN 2 PANGKEP
+            </div>
+        </section>
+
+
+        <!-- ==================== 2. DASHBOARD MENU UTAMA ==================== -->
+        <section id="screenMenu" class="hidden w-full max-w-4xl bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl my-auto">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 mb-6 border-b border-slate-800 gap-4">
+                <div>
+                    <span class="text-xs font-bold text-cyan-400 uppercase tracking-widest bg-cyan-950/80 border border-cyan-800/50 px-3 py-1 rounded-full">Selamat Datang!</span>
+                    <h2 id="greetingName" class="font-display text-2xl md:text-3xl text-white mt-1">Siswa Peneliti</h2>
+                    <p id="greetingClass" class="text-xs md:text-sm text-slate-400">Kelas XI Fase F</p>
+                </div>
+                <div class="bg-slate-950 px-4 py-2 rounded-2xl border border-slate-800 flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold">Skor Tertinggi</p>
+                        <p id="highScoreText" class="font-display text-lg text-amber-400">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MENU GRID -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onclick="startGame()" class="group relative overflow-hidden bg-gradient-to-r from-cyan-600 to-emerald-600 p-6 rounded-2xl text-left shadow-xl hover:shadow-cyan-500/20 transition active:scale-[0.98]">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl text-white">
+                            <i class="fa-solid fa-gamepad"></i>
+                        </div>
+                        <i class="fa-solid fa-circle-play text-3xl text-white/80 group-hover:scale-110 transition"></i>
+                    </div>
+                    <h3 class="font-display text-xl text-white">MULAI BERMAIN</h3>
+                    <p class="text-xs text-cyan-100/80 mt-1">Selesaikan 5 tantangan kinestetik lab interaktif!</p>
+                </button>
+
+                <button onclick="showScreen('screenMateri')" class="group bg-slate-950 border border-slate-800 hover:border-slate-700 p-6 rounded-2xl text-left transition active:scale-[0.98]">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-2xl text-cyan-400">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-cyan-400 transition"></i>
+                    </div>
+                    <h3 class="font-display text-lg text-white">MATERI ENZIM</h3>
+                    <p class="text-xs text-slate-400 mt-1">Rangkuman lengkap struktur, sifat & cara kerja enzim</p>
+                </button>
+
+                <button onclick="showScreen('screenCPTP')" class="group bg-slate-950 border border-slate-800 hover:border-slate-700 p-6 rounded-2xl text-left transition active:scale-[0.98]">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-2xl text-purple-400">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-purple-400 transition"></i>
+                    </div>
+                    <h3 class="font-display text-lg text-white">PENDAHULUAN & CP-TP</h3>
+                    <p class="text-xs text-slate-400 mt-1">Capaian & Tujuan Pembelajaran Kurikulum Merdeka</p>
+                </button>
+
+                <button onclick="showScreen('screenPetunjuk')" class="group bg-slate-950 border border-slate-800 hover:border-slate-700 p-6 rounded-2xl text-left transition active:scale-[0.98]">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-2xl text-amber-400">
+                            <i class="fa-solid fa-circle-question"></i>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-amber-400 transition"></i>
+                    </div>
+                    <h3 class="font-display text-lg text-white">PETUNJUK PERMAINAN</h3>
+                    <p class="text-xs text-slate-400 mt-1">Cara menggunakan kontrol sentuh & navigasi game</p>
+                </button>
+            </div>
+
+            <div class="mt-6 text-center">
+                <button onclick="showScreen('screenDev')" class="text-xs text-slate-500 hover:text-cyan-400 underline transition">
+                    <i class="fa-solid fa-user-gear mr-1"></i> Informasi Pengembang Aplikasi
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ==================== 3. MODUL CP & TP ==================== -->
+        <section id="screenCPTP" class="hidden w-full max-w-3xl bg-slate-900/95 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl my-auto">
+            <h2 class="font-display text-2xl text-cyan-400 mb-4 flex items-center">
+                <i class="fa-solid fa-bullseye mr-3"></i> CP & TUJUAN PEMBELAJARAN
+            </h2>
+            <div class="space-y-4 text-sm text-slate-300">
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <h4 class="font-bold text-amber-400 text-xs uppercase mb-1">Capaian Pembelajaran (CP) - Fase F</h4>
+                    <p class="leading-relaxed">Murid mampu menganalisis komponen penyusun enzim, sifat-sifat enzim, cara kerja enzim, dan faktor-faktor yang memengaruhi kerja enzim.</p>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <h4 class="font-bold text-emerald-400 text-xs uppercase mb-2">Tujuan Pembelajaran (TP)</h4>
+                    <ul class="list-disc list-inside space-y-1.5 text-slate-300">
+                        <li>Menganalisis komponen penyusun enzim (Apoenzim & Gugus Prostetik).</li>
+                        <li>Menganalisis sifat-sifat unik enzim sebagai biokatalisator.</li>
+                        <li>Menganalisis mekanisme cara kerja enzim (Lock & Key dan Induced Fit).</li>
+                        <li>Menganalisis faktor lingkungan yang memengaruhi aktivitas enzim (Suhu & pH).</li>
+                    </ul>
+                </div>
+            </div>
+            <button onclick="showScreen('screenMenu')" class="mt-6 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Kembali ke Menu
+            </button>
+        </section>
+
+
+        <!-- ==================== 4. MODUL PETUNJUK PERMAINAN ==================== -->
+        <section id="screenPetunjuk" class="hidden w-full max-w-3xl bg-slate-900/95 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl my-auto">
+            <h2 class="font-display text-2xl text-amber-400 mb-4 flex items-center">
+                <i class="fa-solid fa-circle-question mr-3"></i> PETUNJUK PERMAINAN
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                    <div class="w-12 h-12 bg-cyan-500/20 text-cyan-400 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3">
+                        <i class="fa-solid fa-hand-pointer"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-sm mb-1">Seret & Lepas (Drag & Drop)</h3>
+                    <p class="text-xs text-slate-400">Gunakan jari di layar sentuh/mouse untuk menyeret molekul ke wadah/target yang sesuai.</p>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                    <div class="w-12 h-12 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3">
+                        <i class="fa-solid fa-gamepad"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-sm mb-1">Navigasi Labirin</h3>
+                    <p class="text-xs text-slate-400">Gunakan D-Pad Virtual di layar atau Tombol Panah/WASD di keyboard untuk menggerakkan Enzim.</p>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                    <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-sm mb-1">Simulasi Kontrol</h3>
+                    <p class="text-xs text-slate-400">Geser kontrol suhu dan pH untuk menemukan kondisi optimum reaksi enzim secara tepat.</p>
+                </div>
+            </div>
+            <button onclick="showScreen('screenMenu')" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Kembali ke Menu
+            </button>
+        </section>
+
+
+        <!-- ==================== 5. MODUL MATERI PEMBELAJARAN ==================== -->
+        <section id="screenMateri" class="hidden w-full max-w-4xl bg-slate-900/95 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl my-auto">
+            <h2 class="font-display text-2xl text-emerald-400 mb-4 flex items-center">
+                <i class="fa-solid fa-book-open mr-3"></i> RINGKASAN MATERI ENZIM
+            </h2>
+            <div class="max-h-[60vh] overflow-y-auto pr-2 space-y-4 text-xs md:text-sm text-slate-300">
+                
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-display text-base text-cyan-400 mb-2">1. Komponen Penyusun Enzim (Holoenzim)</h3>
+                    <p class="leading-relaxed mb-2">Enzim utuh yang aktif disebut <strong>Holoenzim</strong>, terdiri dari dua bagian utama:</p>
+                    <ul class="list-disc list-inside space-y-1 bg-slate-900 p-3 rounded-xl border border-slate-800">
+                        <li><strong class="text-emerald-400">Apoenzim:</strong> Bagian utama berupa protein, bersifat termolabil (rusak oleh panas).</li>
+                        <li><strong class="text-amber-400">Gugus Prostetik:</strong> Bagian non-protein yang tahan panas. Terdiri dari:
+                            <ul class="list-circle list-inside pl-4 text-slate-400">
+                                <li><em>Kofaktor:</em> Molekul anorganik (Ion logam seperti Fe²⁺, Mg²⁺, Zn²⁺).</li>
+                                <li><em>Koenzim:</em> Molekul organik kompleks (Vitamin seperti NAD⁺, FAD, Vitamin B).</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-display text-base text-purple-400 mb-2">2. Sifat-Sifat Utama Enzim</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <strong class="text-slate-200">Biokatalisator:</strong> Mempercepat reaksi tanpa ikut bereaksi/habis.
+                        </div>
+                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <strong class="text-slate-200">Spesifik (Khas):</strong> Bekerja hanya pada substrat tertentu (1 enzim = 1 substrat).
+                        </div>
+                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <strong class="text-slate-200">Termolabil:</strong> Sangat peka terhadap suhu tinggi (Denaturasi pada suhu panas).
+                        </div>
+                        <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <strong class="text-slate-200">Reversibel:</strong> Umumnya reaksi bekerja dua arah (bolak-balik).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-display text-base text-amber-400 mb-2">3. Mekanisme Cara Kerja Enzim</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Teori Kunci & Gembok (Lock and Key):</strong> Sisi aktif enzim kaku dan pas secara presisi dengan bentuk substrat.</li>
+                        <li><strong>Teori Induksi Pas (Induced Fit):</strong> Sisi aktif enzim fleksibel, menyesuaikan bentuknya saat substrat mengikat.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-display text-base text-rose-400 mb-2">4. Faktor Yang Memengaruhi Kerja Enzim</h3>
+                    <p class="leading-relaxed">Aktivitas enzim dipengaruhi oleh <strong>Suhu</strong> (optimum ~37°C di tubuh manusia), <strong>pH Lingkungan</strong> (misal Pepsin di asam pH 2, Tripsin di basa pH 8), <strong>Konsentrasi Substrat</strong>, dan <strong>Inhibitor</strong> (Penghambat Reaksi).</p>
+                </div>
+
+            </div>
+            <button onclick="showScreen('screenMenu')" class="mt-6 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Kembali ke Menu
+            </button>
+        </section>
+
+
+        <!-- ==================== 6. INFO PENGEMBANG ==================== -->
+        <section id="screenDev" class="hidden w-full max-w-lg bg-slate-900/95 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl my-auto text-center">
+            <div class="w-20 h-20 bg-gradient-to-tr from-purple-500 to-indigo-600 rounded-full mx-auto flex items-center justify-center text-white text-3xl mb-4 shadow-xl shadow-purple-500/20">
+                <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <h2 class="font-display text-2xl text-white">PROFIL PENGEMBANG</h2>
+            <p class="text-xs text-purple-400 font-bold uppercase tracking-widest mb-6">Guru & Instructional Designer</p>
+
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left space-y-3 mb-6 text-xs md:text-sm">
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Nama Pengembang</span>
+                    <span class="text-white font-semibold">A. RAHMAWATI. P, S.Pd</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Instansi / Sekolah</span>
+                    <span class="text-white font-semibold">SMAN 2 PANGKEP</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Mata Pelajaran</span>
+                    <span class="text-cyan-400 font-semibold">Biologi (Fase F / Kelas XI)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Model Pembelajaran</span>
+                    <span class="text-emerald-400 font-semibold">Gim Edukasi Kinestetik</span>
+                </div>
+            </div>
+
+            <button onclick="showScreen('screenMenu')" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Kembali ke Menu
+            </button>
+        </section>
+
+
+        <!-- ==================== 7. GAME ARENA (FULL KINESTETIK 16:9 HASIL ARENA) ==================== -->
+        <section id="screenGame" class="hidden w-full h-full flex flex-col justify-between">
+            
+            <!-- GAME HUD / HEADER STATUS -->
+            <div class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-3 mb-3 flex flex-wrap items-center justify-between gap-2 shadow-lg">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-cyan-950 border border-cyan-800 px-3 py-1 rounded-xl">
+                        <span class="text-[10px] text-cyan-400 font-bold block uppercase">Pemain</span>
+                        <span id="hudPlayerName" class="font-bold text-xs text-white">Siswa</span>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 px-3 py-1 rounded-xl">
+                        <span class="text-[10px] text-slate-400 font-bold block uppercase">Ronde</span>
+                        <span id="hudRoundText" class="font-display text-sm text-cyan-400">1 / 5</span>
+                    </div>
+                </div>
+
+                <!-- PROGRESS BAR -->
+                <div class="flex-grow max-w-xs mx-2">
+                    <div class="flex justify-between text-[10px] text-slate-400 font-bold mb-1">
+                        <span>PROGRESS LAB</span>
+                        <span id="hudProgressPercent">0%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-950 rounded-full border border-slate-800 overflow-hidden">
+                        <div id="hudProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 w-0 transition-all duration-500"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-slate-950 border border-slate-800 px-3 py-1 rounded-xl flex items-center space-x-2">
+                        <i class="fa-solid fa-star text-amber-400"></i>
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-bold block uppercase">Skor Live</span>
+                            <span id="hudScoreText" class="font-display text-sm text-amber-400">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHALLENGE DISPLAY AREA (16:9 CONTAINER) -->
+            <div id="gameChallengeContainer" class="game-container bg-slate-900/95 border border-slate-800 rounded-3xl p-4 md:p-6 shadow-2xl relative flex flex-col justify-between overflow-hidden">
+                
+                <!-- CONTENT GENERATED DYNAMICALLY BY JAVASCRIPT -->
+                <div id="challengeStage" class="w-full h-full flex flex-col justify-between"></div>
+
+            </div>
+
+            <!-- FEEDBACK OVERLAY BANNER -->
+            <div id="feedbackModal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-md rounded-3xl flex items-center justify-center p-6 z-50">
+                <div class="bg-slate-900 border-2 border-cyan-500 max-w-md w-full p-6 rounded-3xl text-center shadow-2xl animate-bounce-short">
+                    <div id="feedbackIcon" class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 text-3xl flex items-center justify-center mx-auto mb-3">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <h3 id="feedbackTitle" class="font-display text-2xl text-white mb-1">LUAR BIASA!</h3>
+                    <p id="feedbackDesc" class="text-xs md:text-sm text-slate-300 mb-6">Analisis komponen enzim kamu tepat sekali.</p>
+                    <button id="feedbackNextBtn" onclick="nextRound()" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 font-display text-slate-950 rounded-xl shadow-lg transition hover:brightness-110">
+                        RONDE BERIKUTNYA <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ==================== 8. SELEBRASI / SCORE BOARD ==================== -->
+        <section id="screenScore" class="hidden w-full max-w-lg bg-slate-900/95 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl my-auto text-center relative overflow-hidden">
+            <div class="w-24 h-24 bg-gradient-to-tr from-amber-400 to-amber-600 rounded-full mx-auto flex items-center justify-center text-slate-950 text-4xl mb-4 shadow-xl shadow-amber-500/30 glow-active">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="font-display text-3xl text-white">SELAMAT!</h2>
+            <p class="text-xs text-slate-400 mb-6">Kamu Resmi Menjadi "Ahli Biokatalisator Enzim"</p>
+
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 mb-6 space-y-3">
+                <div class="flex justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
+                    <span>Nama Siswa</span>
+                    <span id="finalPlayerName" class="text-white font-bold">Ahmad</span>
+                </div>
+                <div class="flex justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
+                    <span>Kelas</span>
+                    <span id="finalPlayerClass" class="text-white font-bold">XI-1</span>
+                </div>
+                <div class="flex justify-between items-center pt-1">
+                    <span class="text-sm font-bold text-slate-300">TOTAL SKOR</span>
+                    <span id="finalScoreText" class="font-display text-3xl text-amber-400">500</span>
+                </div>
+            </div>
+
+            <div class="flex space-x-3">
+                <button onclick="startGame()" class="flex-1 py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 font-display text-slate-950 rounded-xl shadow-lg transition">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> MAIN LAGI
+                </button>
+                <button onclick="showScreen('screenMenu')" class="px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-sm transition">
+                    <i class="fa-solid fa-house"></i>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="w-full max-w-7xl mx-auto text-center py-2 text-[11px] text-slate-500">
+        &copy; 2026 Gim Edukasi Biologi XI - SMAN 2 PANGKEP | A. RAHMAWATI. P, S.Pd
+    </footer>
+
+
+    <!-- ========================================================================= -->
+    <!-- JAVASCRIPT LOGIC & WEB AUDIO API SYNTHESIZER                              -->
+    <!-- ========================================================================= -->
+    <script>
+        /* -------------------------------------------------------------------------
+           1. WEB AUDIO API SYNTHESIZER (NO EXTERNAL MP3 DEPENDENCY)
+           ------------------------------------------------------------------------- */
+        class SoundSynth {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+            }
+
+            playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.1) {
+                if (this.muted) return;
+                this.init();
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {}
+            }
+
+            playCorrect() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.2);
+                });
+            }
+
+            playWrong() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playCelebration() {
+                if (this.muted) return;
+                this.init();
+                const melody = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+                melody.forEach((freq, idx) => {
+                    setTimeout(() => this.playTone(freq, 'sine', 0.25, 0.15), idx * 120);
+                });
+            }
+        }
+
+        const audio = new SoundSynth();
+
+        function toggleAudio() {
+            audio.muted = !audio.muted;
+            const icon = document.getElementById('soundIcon');
+            if (audio.muted) {
+                icon.className = "fa-solid fa-volume-xmark text-slate-500";
+            } else {
+                icon.className = "fa-solid fa-volume-high text-cyan-400";
+                audio.playTone(600, 'sine', 0.1);
+            }
+        }
+
+
+        /* -------------------------------------------------------------------------
+           2. GAME STATE & SYSTEM NAVIGATION
+           ------------------------------------------------------------------------- */
+        let gameState = {
+            playerName: '',
+            playerClass: '',
+            currentRound: 0,
+            score: 0,
+            highScore: 0,
+            totalRounds: 5
+        };
+
+        function showScreen(screenId) {
+            audio.playTone(400, 'sine', 0.05);
+            const screens = ['screenLogin', 'screenMenu', 'screenCPTP', 'screenPetunjuk', 'screenMateri', 'screenDev', 'screenGame', 'screenScore'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function submitLogin() {
+            const name = document.getElementById('playerNameInput').value.trim();
+            const cls = document.getElementById('playerClassInput').value.trim();
+            if (!name || !cls) return;
+
+            gameState.playerName = name;
+            gameState.playerClass = cls;
+
+            document.getElementById('greetingName').innerText = name;
+            document.getElementById('greetingClass').innerText = "Kelas: " + cls;
+            document.getElementById('hudPlayerName').innerText = name;
+
+            showScreen('screenMenu');
+        }
+
+        function updateHUD() {
+            document.getElementById('hudRoundText').innerText = `${gameState.currentRound + 1} / ${gameState.totalRounds}`;
+            document.getElementById('hudScoreText').innerText = gameState.score;
+            
+            const progressPct = Math.round((gameState.currentRound / gameState.totalRounds) * 100);
+            document.getElementById('hudProgressPercent').innerText = `${progressPct}%`;
+            document.getElementById('hudProgressBar').style.width = `${progressPct}%`;
+        }
+
+        function startGame() {
+            gameState.currentRound = 0;
+            gameState.score = 0;
+            showScreen('screenGame');
+            loadRound(0);
+        }
+
+        function nextRound() {
+            document.getElementById('feedbackModal').classList.add('hidden');
+            gameState.currentRound++;
+            if (gameState.currentRound >= gameState.totalRounds) {
+                finishGame();
+            } else {
+                loadRound(gameState.currentRound);
+            }
+        }
+
+        function showFeedback(isSuccess, title, desc) {
+            const modal = document.getElementById('feedbackModal');
+            const icon = document.getElementById('feedbackIcon');
+            const tEl = document.getElementById('feedbackTitle');
+            const dEl = document.getElementById('feedbackDesc');
+
+            if (isSuccess) {
+                audio.playCorrect();
+                gameState.score += 100;
+                icon.className = "w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 text-3xl flex items-center justify-center mx-auto mb-3 border border-emerald-500/30";
+                icon.innerHTML = `<i class="fa-solid fa-check"></i>`;
+                tEl.innerText = title || "ANALISIS TEPAT!";
+                tEl.className = "font-display text-2xl text-emerald-400 mb-1";
+            } else {
+                audio.playWrong();
+                icon.className = "w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 text-3xl flex items-center justify-center mx-auto mb-3 border border-rose-500/30";
+                icon.innerHTML = `<i class="fa-solid fa-xmark"></i>`;
+                tEl.innerText = title || "KURANG TEPAT!";
+                tEl.className = "font-display text-2xl text-rose-400 mb-1";
+            }
+
+            dEl.innerText = desc;
+            updateHUD();
+            modal.classList.remove('hidden');
+        }
+
+        function finishGame() {
+            if (gameState.score > gameState.highScore) {
+                gameState.highScore = gameState.score;
+                document.getElementById('highScoreText').innerText = gameState.highScore;
+            }
+            document.getElementById('finalPlayerName').innerText = gameState.playerName;
+            document.getElementById('finalPlayerClass').innerText = gameState.playerClass;
+            document.getElementById('finalScoreText').innerText = gameState.score;
+
+            showScreen('screenScore');
+            audio.playCelebration();
+            try {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            } catch(e) {}
+        }
+
+
+        /* -------------------------------------------------------------------------
+           3. KINESTETHIC ROUND CHALLENGES ENGINE
+           ------------------------------------------------------------------------- */
+        function loadRound(roundIdx) {
+            updateHUD();
+            const stage = document.getElementById('challengeStage');
+            stage.innerHTML = '';
+
+            switch(roundIdx) {
+                case 0:
+                    renderRound1_HoloenzimDrag(stage);
+                    break;
+                case 1:
+                    renderRound2_PropertiesMatch(stage);
+                    break;
+                case 2:
+                    renderRound3_LockAndKeyFitting(stage);
+                    break;
+                case 3:
+                    renderRound4_FactorSliderSimulation(stage);
+                    break;
+                case 4:
+                    renderRound5_EnzymeMazeLab(stage);
+                    break;
+            }
+        }
+
+
+        /* ==================== RONDE 1: DRAG & DROP HOLOENZIM ==================== */
+        function renderRound1_HoloenzimDrag(stage) {
+            stage.innerHTML = `
+                <div class="text-center mb-2">
+                    <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-950 px-3 py-1 rounded-full border border-cyan-800">Tantangan 1: Komponent Struktur</span>
+                    <h3 class="font-display text-lg md:text-xl text-white mt-1">Rakit Struktur Utuh Enzim (Holoenzim)!</h3>
+                    <p class="text-xs text-slate-400">Seret molekul penyusun di bawah ke area target Holoenzim yang benar.</p>
+                </div>
+
+                <!-- TARGET HOLOENZIM CONTAINER -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-auto">
+                    <div id="dropApo" data-target="apoenzim" class="dropzone bg-slate-950/80 border-2 border-dashed border-cyan-500/40 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[140px] text-center">
+                        <span class="text-xs font-bold text-cyan-400 mb-1">TARGET 1: PROTEIN (TERMOLABIL)</span>
+                        <div class="target-slot font-display text-sm text-slate-500">Drop "Apoenzim" Di Sini</div>
+                    </div>
+
+                    <div id="dropGugus" data-target="gugus" class="dropzone bg-slate-950/80 border-2 border-dashed border-amber-500/40 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[140px] text-center">
+                        <span class="text-xs font-bold text-amber-400 mb-1">TARGET 2: NON-PROTEIN (NON-ORGANIK/ORGANIK)</span>
+                        <div class="target-slot font-display text-sm text-slate-500">Drop "Gugus Prostetik" Di Sini</div>
+                    </div>
+                </div>
+
+                <!-- DRAGGABLE ITEMS -->
+                <div class="flex flex-wrap justify-center gap-3 mt-2">
+                    <div draggable="true" id="dragApo" data-type="apoenzim" class="draggable bg-gradient-to-r from-cyan-600 to-blue-600 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-lg cursor-grab active:cursor-grabbing flex items-center space-x-2">
+                        <i class="fa-solid fa-cubes"></i>
+                        <span>Apoenzim (Protein Utama)</span>
+                    </div>
+
+                    <div draggable="true" id="dragGugus" data-type="gugus" class="draggable bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-3 rounded-xl font-bold text-sm text-white shadow-lg cursor-grab active:cursor-grabbing flex items-center space-x-2">
+                        <i class="fa-solid fa-atom"></i>
+                        <span>Gugus Prostetik (Kofaktor/Koenzim)</span>
+                    </div>
+
+                    <div draggable="true" id="dragFake" data-type="fake" class="draggable bg-slate-800 border border-slate-700 px-5 py-3 rounded-xl font-bold text-sm text-slate-300 shadow-lg cursor-grab active:cursor-grabbing flex items-center space-x-2">
+                        <i class="fa-solid fa-dna"></i>
+                        <span>Rantai Asam Nukleat</span>
+                    </div>
+                </div>
+            `;
+
+            initDragAndDropListeners((dragType, targetType) => {
+                if (dragType === targetType) {
+                    return true;
+                }
+                return false;
+            }, 2, "Holoenzim Terbentuk!", "Apoenzim (protein) + Gugus Prostetik (non-protein) membentuk Holoenzim yang aktif!");
+        }
+
+
+        /* ==================== RONDE 2: SORTING SIFAT-SIFAT ENZIM ==================== */
+        function renderRound2_PropertiesMatch(stage) {
+            stage.innerHTML = `
+                <div class="text-center mb-2">
+                    <span class="text-[10px] font-bold text-purple-400 uppercase tracking-widest bg-purple-950 px-3 py-1 rounded-full border border-purple-800">Tantangan 2: Sifat Biokatalisator</span>
+                    <h3 class="font-display text-lg md:text-xl text-white mt-1">Klasifikasikan Sifat Enzim Yang Benar!</h3>
+                    <p class="text-xs text-slate-400">Klasifikasikan pernyataan di bawah dengan menekan kategori yang tepat.</p>
+                </div>
+
+                <div id="propertyCard" class="bg-slate-950 border border-slate-800 p-6 rounded-2xl text-center max-w-xl mx-auto my-auto shadow-xl">
+                    <span id="propCategory" class="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-2">Pernyataan Sifat</span>
+                    <p id="propText" class="font-display text-base md:text-lg text-slate-100">"Enzim hanya bekerja pada 1 jenis substrat tertentu secara spesifik."</p>
+                </div>
+
+                <div class="flex justify-center space-x-4 my-2">
+                    <button onclick="checkPropertyAnswer(true)" class="flex-1 max-w-xs py-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-display text-base rounded-2xl shadow-lg transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-thumbs-up"></i>
+                        <span>FAKTA BENAR</span>
+                    </button>
+                    <button onclick="checkPropertyAnswer(false)" class="flex-1 max-w-xs py-4 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-display text-base rounded-2xl shadow-lg transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-thumbs-down"></i>
+                        <span>MITOS SALAH</span>
+                    </button>
+                </div>
+            `;
+
+            window.propQuestions = [
+                { text: "Enzim ikut habis bereaksi dalam mengubah substrat menjadi produk.", answer: false, exp: "Enzim adalah Biokatalisator: Mempercepat reaksi tanpa ikut habis bereaksi." },
+                { text: "Enzim bersifat Termolabil (Rusak/Denaturasi jika dipanaskan pada suhu tinggi).", answer: true, exp: "Tepat! Karena apoenzim berupa protein, enzim sangat peka terhadap panas." },
+                { text: "Kerja enzim bersifat spesifik (1 enzim hanya untuk substrat spesifik).", answer: true, exp: "Benar! Contohnya Enzim Laktase hanya memecah Laktosa." }
+            ];
+            window.propIndex = 0;
+            updatePropQuestion();
+        }
+
+        function updatePropQuestion() {
+            const q = window.propQuestions[window.propIndex];
+            document.getElementById('propText').innerText = `"${q.text}"`;
+        }
+
+        function checkPropertyAnswer(userAns) {
+            const q = window.propQuestions[window.propIndex];
+            if (userAns === q.answer) {
+                window.propIndex++;
+                if (window.propIndex >= window.propQuestions.length) {
+                    showFeedback(true, "SIFAT ENZIM DIPAHAMI!", "Kamu berhasil mengidentifikasi seluruh sifat unik biokatalisator!");
+                } else {
+                    audio.playCorrect();
+                    updatePropQuestion();
+                }
+            } else {
+                showFeedback(false, "KURANG TEPAT!", q.exp);
+            }
+        }
+
+
+        /* ==================== RONDE 3: LOCK & KEY FITTING (CARA KERJA) ==================== */
+        function renderRound3_LockAndKeyFitting(stage) {
+            stage.innerHTML = `
+                <div class="text-center mb-1">
+                    <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest bg-amber-950 px-3 py-1 rounded-full border border-amber-800">Tantangan 3: Cara Kerja Enzim</span>
+                    <h3 class="font-display text-base md:text-lg text-white mt-1">Pasangkan Substrat Presisi (Teori Lock & Key)</h3>
+                    <p class="text-xs text-slate-400">Cocokkan bentuk geometri substrat ke Sisi Aktif Enzim yang tepat.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-auto items-center">
+                    <!-- ENZYME LOCK TARGET -->
+                    <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center flex flex-col items-center">
+                        <span class="text-xs font-bold text-cyan-400 mb-2">ENZIM SISI AKTIF (SEGITIGA)</span>
+                        <div id="dropShape" data-target="triangle" class="dropzone w-32 h-32 bg-slate-900 border-2 border-dashed border-cyan-500 rounded-2xl flex items-center justify-center">
+                            <i class="fa-solid fa-shapes text-3xl text-slate-700"></i>
+                        </div>
+                    </div>
+
+                    <!-- SUBSTRATES SELECTION -->
+                    <div class="flex flex-col space-y-2 items-center">
+                        <span class="text-xs font-bold text-slate-400">Pilih Substrat Yang Cocok:</span>
+                        <div draggable="true" data-type="square" class="draggable bg-rose-600 px-4 py-2.5 rounded-xl font-bold text-xs text-white shadow-md flex items-center space-x-2">
+                            <i class="fa-solid fa-square"></i>
+                            <span>Substrat Kotak</span>
+                        </div>
+                        <div draggable="true" data-type="triangle" class="draggable bg-emerald-600 px-4 py-2.5 rounded-xl font-bold text-xs text-white shadow-md flex items-center space-x-2">
+                            <i class="fa-solid fa-play -rotate-90"></i>
+                            <span>Substrat Segitiga Presisi</span>
+                        </div>
+                        <div draggable="true" data-type="circle" class="draggable bg-purple-600 px-4 py-2.5 rounded-xl font-bold text-xs text-white shadow-md flex items-center space-x-2">
+                            <i class="fa-solid fa-circle"></i>
+                            <span>Substrat Lingkaran</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            initDragAndDropListeners((dragType, targetType) => dragType === targetType, 1, "KOMPLEKS ENZIM-SUBSTRAT TERBENTUK!", "Bentuk substrat segitiga pas secara presisi dengan sisi aktif enzim menurut Teori Kunci & Gembok.");
+        }
+
+
+        /* ==================== RONDE 4: SIMULASI FAKTOR SUHU & pH ==================== */
+        function renderRound4_FactorSliderSimulation(stage) {
+            stage.innerHTML = `
+                <div class="text-center mb-1">
+                    <span class="text-[10px] font-bold text-rose-400 uppercase tracking-widest bg-rose-950 px-3 py-1 rounded-full border border-rose-800">Tantangan 4: Faktor Lingkungan</span>
+                    <h3 class="font-display text-base md:text-lg text-white mt-1">Atur Kondisi Optimum Reaksi Enzim Tubuh!</h3>
+                    <p class="text-xs text-slate-400">Geser Suhu dan pH agar reaksi biokatalisator mencapai kecepatan maksimal (100%).</p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 max-w-xl mx-auto my-auto w-full space-y-4">
+                    <!-- SUHU SLIDER -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <span class="text-amber-400"><i class="fa-solid fa-temperature-half mr-1"></i> Suhu Lingkungan (°C)</span>
+                            <span id="tempValText" class="text-white">20 °C</span>
+                        </div>
+                        <input type="range" id="tempSlider" min="0" max="80" value="20" oninput="updateEnzymeSim()" class="w-full accent-cyan-500">
+                    </div>
+
+                    <!-- pH SLIDER -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <span class="text-purple-400"><i class="fa-solid fa-vial mr-1"></i> Derajat Keasaman (pH)</span>
+                            <span id="phValText" class="text-white">pH 2.0</span>
+                        </div>
+                        <input type="range" id="phSlider" min="1" max="14" step="0.5" value="2" oninput="updateEnzymeSim()" class="w-full accent-purple-500">
+                    </div>
+
+                    <!-- REACTION SPEED METER -->
+                    <div class="pt-2 border-t border-slate-800 text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Laju Reaksi Enzim Amilase Mulut:</span>
+                        <div class="w-full h-4 bg-slate-900 rounded-full border border-slate-800 overflow-hidden mb-1">
+                            <div id="rateBar" class="h-full bg-rose-500 w-10 transition-all duration-150"></div>
+                        </div>
+                        <span id="rateText" class="font-display text-xs text-rose-400">20% (Lambat/Sub-Optimum)</span>
+                    </div>
+                </div>
+
+                <button onclick="checkSimResult()" class="w-full max-w-sm mx-auto py-3 bg-gradient-to-r from-cyan-500 to-emerald-500 font-display text-slate-950 rounded-xl shadow-lg transition">
+                    UJI KONDISI OPTIMUM <i class="fa-solid fa-vial-circle-check ml-2"></i>
+                </button>
+            `;
+            updateEnzymeSim();
+        }
+
+        function updateEnzymeSim() {
+            const temp = parseInt(document.getElementById('tempSlider').value);
+            const ph = parseFloat(document.getElementById('phSlider').value);
+
+            document.getElementById('tempValText').innerText = temp + " °C";
+            document.getElementById('phValText').innerText = "pH " + ph;
+
+            // Ideal temp for human amylase ~37C, ideal pH ~7.0
+            let tempScore = Math.max(0, 100 - Math.abs(temp - 37) * 3);
+            let phScore = Math.max(0, 100 - Math.abs(ph - 7) * 20);
+
+            let totalRate = Math.round((tempScore + phScore) / 2);
+            
+            const bar = document.getElementById('rateBar');
+            const text = document.getElementById('rateText');
+
+            bar.style.width = totalRate + "%";
+            if (totalRate > 80) {
+                bar.className = "h-full bg-emerald-400 transition-all duration-150";
+                text.className = "font-display text-xs text-emerald-400";
+                text.innerText = totalRate + "% (Laju Maksimal Optimum!)";
+            } else if (totalRate > 40) {
+                bar.className = "h-full bg-amber-400 transition-all duration-150";
+                text.className = "font-display text-xs text-amber-400";
+                text.innerText = totalRate + "% (Reaksi Sedang)";
+            } else {
+                bar.className = "h-full bg-rose-500 transition-all duration-150";
+                text.className = "font-display text-xs text-rose-400";
+                text.innerText = totalRate + "% (Sangat Lambat / Terdenaturasi)";
+            }
+        }
+
+        function checkSimResult() {
+            const temp = parseInt(document.getElementById('tempSlider').value);
+            const ph = parseFloat(document.getElementById('phSlider').value);
+
+            if (temp >= 35 && temp <= 40 && ph >= 6.5 && ph <= 7.5) {
+                showFeedback(true, "KONDISI OPTIMUM TEPAT!", "Suhu tubuh normal (~37°C) dan pH netral (7) membuat laju kerja Enzim Amilase bekerja secara maksimal!");
+            } else {
+                showFeedback(false, "BELUM OPTIMUM!", "Petunjuk: Enzim amilase di mulut manusia bekerja paling efektif pada suhu tubuh (~37°C) dan pH Netral (pH 7).");
+            }
+        }
+
+
+        /* ==================== RONDE 5: MAZE LABIRIN ENZIM ==================== */
+        function renderRound5_EnzymeMazeLab(stage) {
+            stage.innerHTML = `
+                <div class="text-center mb-1">
+                    <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-950 px-3 py-1 rounded-full border border-emerald-800">Tantangan 5: Labirin Reaksi</span>
+                    <h3 class="font-display text-xs md:text-sm text-white mt-0.5">Arahkan Enzim Mengambil Substrat Menuju Target Reaksi!</h3>
+                </div>
+
+                <!-- MAZE CANVAS & D-PAD LAYOUT -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-2 my-auto">
+                    <canvas id="mazeCanvas" width="280" height="280" class="bg-slate-950 border-2 border-cyan-500/50 rounded-2xl shadow-xl"></canvas>
+
+                    <!-- TOUCH D-PAD VIRTUAL FOR TOUCHSCREEN -->
+                    <div class="grid grid-cols-3 gap-1 w-36 h-36">
+                        <div></div>
+                        <button onclick="moveMaze('up')" class="bg-slate-800 hover:bg-slate-700 active:bg-cyan-600 rounded-xl flex items-center justify-center text-white text-lg"><i class="fa-solid fa-chevron-up"></i></button>
+                        <div></div>
+                        <button onclick="moveMaze('left')" class="bg-slate-800 hover:bg-slate-700 active:bg-cyan-600 rounded-xl flex items-center justify-center text-white text-lg"><i class="fa-solid fa-chevron-left"></i></button>
+                        <div class="flex items-center justify-center text-[10px] text-slate-500 font-bold">D-PAD</div>
+                        <button onclick="moveMaze('right')" class="bg-slate-800 hover:bg-slate-700 active:bg-cyan-600 rounded-xl flex items-center justify-center text-white text-lg"><i class="fa-solid fa-chevron-right"></i></button>
+                        <div></div>
+                        <button onclick="moveMaze('down')" class="bg-slate-800 hover:bg-slate-700 active:bg-cyan-600 rounded-xl flex items-center justify-center text-white text-lg"><i class="fa-solid fa-chevron-down"></i></button>
+                        <div></div>
+                    </div>
+                </div>
+            `;
+
+            initMazeGame();
+        }
+
+        let mazeState = {
+            grid: [
+                [1,1,1,1,1,1,1],
+                [1,0,0,0,1,0,1],
+                [1,0,1,0,1,0,1],
+                [1,0,1,0,0,0,1],
+                [1,0,1,1,1,0,1],
+                [1,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1]
+            ],
+            player: { x: 1, y: 1 },
+            substrate: { x: 3, y: 3, collected: false },
+            goal: { x: 5, y: 5 }
+        };
+
+        function initMazeGame() {
+            mazeState.player = { x: 1, y: 1 };
+            mazeState.substrate.collected = false;
+            drawMaze();
+
+            // Keyboard navigation listener
+            window.onkeydown = (e) => {
+                if (gameState.currentRound === 4) {
+                    if (e.key === 'ArrowUp' || e.key === 'w') moveMaze('up');
+                    if (e.key === 'ArrowDown' || e.key === 's') moveMaze('down');
+                    if (e.key === 'ArrowLeft' || e.key === 'a') moveMaze('left');
+                    if (e.key === 'ArrowRight' || e.key === 'd') moveMaze('right');
+                }
+            };
+        }
+
+        function moveMaze(dir) {
+            let { x, y } = mazeState.player;
+            if (dir === 'up') y--;
+            if (dir === 'down') y++;
+            if (dir === 'left') x--;
+            if (dir === 'right') x++;
+
+            // Check wall collision
+            if (mazeState.grid[y] && mazeState.grid[y][x] === 0) {
+                mazeState.player = { x, y };
+                audio.playTone(300, 'sine', 0.05);
+
+                // Check substrate pickup
+                if (x === mazeState.substrate.x && y === mazeState.substrate.y && !mazeState.substrate.collected) {
+                    mazeState.substrate.collected = true;
+                    audio.playTone(800, 'triangle', 0.15);
+                }
+
+                // Check goal
+                if (x === mazeState.goal.x && y === mazeState.goal.y) {
+                    if (mazeState.substrate.collected) {
+                        showFeedback(true, "EKSPERIMEN LABIRIN SELESAI!", "Kamu berhasil mengikat substrat dan mengatalisisnya di area target!");
+                    } else {
+                        audio.playWrong();
+                    }
+                }
+
+                drawMaze();
+            }
+        }
+
+        function drawMaze() {
+            const canvas = document.getElementById('mazeCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const tileSize = canvas.width / 7;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let r = 0; r < 7; r++) {
+                for (let c = 0; c < 7; c++) {
+                    if (mazeState.grid[r][c] === 1) {
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+                    } else {
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+                    }
+                }
+            }
+
+            // Draw Substrate
+            if (!mazeState.substrate.collected) {
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(mazeState.substrate.x * tileSize + tileSize/2, mazeState.substrate.y * tileSize + tileSize/2, tileSize/4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw Goal
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(mazeState.goal.x * tileSize + 4, mazeState.goal.y * tileSize + 4, tileSize - 8, tileSize - 8);
+
+            // Draw Player (Enzyme)
+            ctx.fillStyle = '#06b6d4';
+            ctx.beginPath();
+            ctx.arc(mazeState.player.x * tileSize + tileSize/2, mazeState.player.y * tileSize + tileSize/2, tileSize/3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+
+        /* -------------------------------------------------------------------------
+           4. DRAG AND DROP UTILITY HANDLERS (TOUCH & MOUSE COMPATIBLE)
+           ------------------------------------------------------------------------- */
+        function initDragAndDropListeners(validateFn, requiredCount, successTitle, successDesc) {
+            let correctMatches = 0;
+            const draggables = document.querySelectorAll('.draggable');
+            const dropzones = document.querySelectorAll('.dropzone');
+
+            draggables.forEach(drag => {
+                drag.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('type', drag.getAttribute('data-type'));
+                    drag.classList.add('dragging');
+                });
+
+                drag.addEventListener('dragend', () => {
+                    drag.classList.remove('dragging');
+                });
+            });
+
+            dropzones.forEach(zone => {
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('drag-over');
+                });
+
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('drag-over');
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('drag-over');
+                    const dragType = e.dataTransfer.getData('type');
+                    const targetType = zone.getAttribute('data-target');
+
+                    if (validateFn(dragType, targetType)) {
+                        correctMatches++;
+                        audio.playCorrect();
+                        zone.classList.add('bg-emerald-950/80', 'border-emerald-500');
+                        zone.querySelector('.target-slot').innerText = "✓ TERPASANG PRESI";
+                        zone.querySelector('.target-slot').className = "font-bold text-xs text-emerald-400";
+
+                        if (correctMatches >= requiredCount) {
+                            showFeedback(true, successTitle, successDesc);
+                        }
+                    } else {
+                        showFeedback(false, "KOMPONEN TIDAK COCOK!", "Letakkan molekul pada pasangan target yang tepat!");
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
